@@ -12,7 +12,7 @@ Item {
 
     required property Item wrapper
 
-    implicitWidth: Hypr.activeToplevel ? child.implicitWidth : -Appearance.padding.large * 2
+    implicitWidth: Scroll.activeToplevel ? child.implicitWidth : -Appearance.padding.large * 2
     implicitHeight: child.implicitHeight
 
     Column {
@@ -33,7 +33,7 @@ Item {
 
                 Layout.alignment: Qt.AlignVCenter
                 implicitSize: details.implicitHeight
-                source: Icons.getAppIcon(Hypr.activeToplevel?.lastIpcObject.class ?? "", "image-missing")
+                source: Icons.getAppIcon(Scroll.activeToplevel?.lastIpcObject.class ?? "", "image-missing")
             }
 
             ColumnLayout {
@@ -44,14 +44,14 @@ Item {
 
                 StyledText {
                     Layout.fillWidth: true
-                    text: Hypr.activeToplevel?.title ?? ""
+                    text: Scroll.activeToplevel?.title ?? ""
                     font.pointSize: Appearance.font.size.normal
                     elide: Text.ElideRight
                 }
 
                 StyledText {
                     Layout.fillWidth: true
-                    text: Hypr.activeToplevel?.lastIpcObject.class ?? ""
+                    text: Scroll.activeToplevel?.lastIpcObject.class ?? ""
                     color: Colours.palette.m3onSurfaceVariant
                     elide: Text.ElideRight
                 }
@@ -91,7 +91,7 @@ Item {
             ScreencopyView {
                 id: preview
 
-                captureSource: Hypr.activeToplevel?.wayland ?? null
+                captureSource: Scroll.activeToplevel?.wayland ?? null
                 live: visible
 
                 constraintSize.width: Config.bar.sizes.windowPreviewSize

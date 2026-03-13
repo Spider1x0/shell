@@ -35,7 +35,7 @@ ColumnLayout {
 
         animate: true
         text: {
-            const ws = Hypr.workspaces.values.find(w => w.id === root.ws);
+            const ws = Scroll.workspaces.values.find(w => w.id === root.ws);
             const wsName = !ws || ws.name == root.ws ? root.ws : ws.name[0];
             let displayName = wsName.toString();
             if (Config.bar.workspaces.capitalisation.toLowerCase() === "upper") {
@@ -87,7 +87,7 @@ ColumnLayout {
 
             Repeater {
                 model: ScriptModel {
-                    values: Hypr.toplevels.values.filter(c => c.workspace?.id === root.ws)
+                    values: Scroll.toplevels.values.filter(c => c.workspace?.id === root.ws)
                 }
 
                 MaterialIcon {
