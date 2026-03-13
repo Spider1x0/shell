@@ -8,10 +8,10 @@ Singleton {
 
     // ── Public properties (mirror Hypr.* interface) ──────────────────────────
 
-    property var workspaces:     ({ values: [] })
-    property var toplevels:      ({ values: [] })
-    property var activeToplevel: null
-    property var focusedMonitor: null
+    property var workspaces:      ({ values: [] })
+    property var toplevels:       ({ values: [] })
+    property var activeToplevel:  null
+    property var focusedMonitor:  null
     property var focusedWorkspace: null
     property int activeWsId:      0
 
@@ -36,7 +36,6 @@ Singleton {
     // Matches a Quickshell ShellScreen to our monitor objects by geometry origin
     function monitorFor(screen) {
         if (!screen) return null
-        var arr = root.workspaces.values  // unused — iterate monitors instead
         for (var i = 0; i < _monitors.length; i++) {
             var m = _monitors[i]
             if (m.rect.x === screen.x && m.rect.y === screen.y)
@@ -47,9 +46,9 @@ Singleton {
 
     // ── Internal state ────────────────────────────────────────────────────────
 
-    property var _monitors: []    // raw monitor array (also exposed via focusedMonitor)
-    property var _windowCounts: ({})  // wsId -> window count from last tree walk
-    property bool _available: false
+    property var _monitors:     []   // raw monitor array
+    property var _windowCounts: ({}) // wsId -> window count from last tree walk
+    property bool _available:   false
 
     // ── Availability check ────────────────────────────────────────────────────
 
@@ -70,19 +69,19 @@ Singleton {
 
     Process {
         id: outputsProc
-        command: ["scrollmsg", "-t", "get_outputs"]
-        stdout: SplitParser {
-            onRead: (line) => {
-                if (!line.trim()) return
+        command: ["scrollmsg", "-t", "get_outputs", "--raw"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (!text.trim()) return
                 try {
-                    var outputs = JSON.parse(line)
+                    var outputs = JSON.parse(text)
                     root._monitors = outputs.map(function(o) {
                         return {
-                            name: o.name,
-                            focused: o.focused,
+                            name:              o.name,
+                            focused:           o.focused,
                             current_workspace: String(o.current_workspace),
-                            rect: o.rect,
-                            activeWorkspace: { id: parseInt(o.current_workspace) || 0 }
+                            rect:              o.rect,
+                            activeWorkspace:   { id: parseInt(o.current_workspace) || o.current_workspace }
                         }
                     })
                     // Now we have outputs — start the rest
@@ -102,12 +101,12 @@ Singleton {
 
     Process {
         id: treeProc
-        command: ["scrollmsg", "-t", "get_tree"]
-        stdout: SplitParser {
-            onRead: (line) => {
-                if (!line.trim()) return
+        command: ["scrollmsg", "-t", "get_tree", "--raw"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (!text.trim()) return
                 try {
-                    var tree = JSON.parse(line)
+                    var tree    = JSON.parse(text)
                     var windows = []
                     var counts  = {}
                     root._walkTree(tree, null, windows, counts)
@@ -129,12 +128,12 @@ Singleton {
 
     Process {
         id: wsProc
-        command: ["scrollmsg", "-t", "get_workspaces"]
-        stdout: SplitParser {
-            onRead: (line) => {
-                if (!line.trim()) return
+        command: ["scrollmsg", "-t", "get_workspaces", "--raw"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (!text.trim()) return
                 try {
-                    var wsList = JSON.parse(line)
+                    var wsList = JSON.parse(text)
                     var ws = wsList.map(function(w) {
                         return {
                             id:      w.num,
@@ -161,12 +160,12 @@ Singleton {
 
     Process {
         id: inputsProc
-        command: ["scrollmsg", "-t", "get_inputs"]
-        stdout: SplitParser {
-            onRead: (line) => {
-                if (!line.trim()) return
+        command: ["scrollmsg", "-t", "get_inputs", "--raw"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (!text.trim()) return
                 try {
-                    var inputs = JSON.parse(line)
+                    var inputs = JSON.parse(text)
                     var kb = inputs.find(function(i) {
                         return i.type === "keyboard"
                             && i.xkb_layout_names
@@ -185,7 +184,7 @@ Singleton {
     }
 
     // ── Event subscription ────────────────────────────────────────────────────
-    // scrollmsg emits newline-delimited JSON objects on the subscribe stream
+    // Event stream emits one JSON object per line — SplitParser is correct here
 
     Process {
         id: eventProc
@@ -211,27 +210,23 @@ Singleton {
     // ── Internal helpers ──────────────────────────────────────────────────────
 
     function _handleEvent(ev) {
-        var type   = ev.type   || ""
         var change = ev.change || ""
 
-        if (type === "workspace") {
-            if (["focus","init","empty","rename"].indexOf(change) !== -1) {
-                outputsProc.running = false
-                outputsProc.running = true
-                wsProc.running = false
-                wsProc.running = true
-            }
-        } else if (type === "window") {
+        if (ev.container) {
+            // window event — container field is present
             if (["new","close","focus","move","title"].indexOf(change) !== -1) {
                 treeProc.running = false
                 treeProc.running = true
                 wsProc.running = false
                 wsProc.running = true
             }
-        } else if (type === "input") {
-            if (change === "xkb_layout" && ev.input) {
-                root.kbLayoutFull = ev.input.xkb_active_layout_name || root.kbLayoutFull
-                root.kbLayout     = root.kbLayoutFull.substring(0, 2)
+        } else {
+            // workspace or input event
+            if (["focus","init","empty","rename"].indexOf(change) !== -1) {
+                outputsProc.running = false
+                outputsProc.running = true
+                wsProc.running = false
+                wsProc.running = true
             }
         }
     }
